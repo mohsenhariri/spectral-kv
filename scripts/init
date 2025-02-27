@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -euo pipefail
+
+IFS=$'\n\t'
+
+readonly WORKDIR=$WORKDIR
+
+echo $WORKDIR
+
+change_name(){
+    new_name=$1
+
+    echo $new_name
+
+    mv "$WORKDIR/pkg" "$WORKDIR/$new_name"
+    sed -i "s/^SRC := .*/SRC := $new_name/" "$WORKDIR/Makefile"
+    sed -i "s/^name = .*/name = \"$new_name\"/" "$WORKDIR/pyproject.toml"
+    sed -i "s/^SRC='.*/SRC='$new_name'/" "$WORKDIR/scripts/.githooks/pre-commit"
+    sed -i "s/^files = .*/files = $new_name\//" "$WORKDIR/.mypy.ini"
+    sed -i "s/^files = .*/files = $new_name\//" "$WORKDIR/.mypy.ini.prod"
+}
+
+
+change_name "$1" 
+
+
+exit 0

@@ -1,0 +1,47 @@
+# https://peps.python.org/pep-0621/
+# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "package-name"
+dynamic = ["version"]
+authors = [
+  {name = "Mohsen Hariri", email = "mhariri68@gmail.com"},
+]
+description = "A [simple] [general-purpose] Python template 🐍🚀🎉🦕"
+keywords = ["Boilerplate", "Template"]
+license = {text = "GPL-3.0 License"}
+# https://github.com/pypi/warehouse/issues/869
+readme = "README.rst"
+requires-python = ">=3.8"
+classifiers = [
+  "Programming Language :: Python :: 3.8",
+  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "Operating System :: OS Independent",
+]
+dependencies = [
+  'importlib-metadata; python_version<"3.8"',
+]
+
+[tool.setuptools]
+packages = ["pkg","pkg.pkg2"]
+
+
+[tool.setuptools.dynamic]
+# version = { attr = "medviz.__version__" }
+version = {file = ["VERSION"]}
+
+[tool.black]
+line-length = 88
+target-version = ["py38"]
+
+[tool.ruff]
+src = ["pkg"]
+target-version = "py38"
+
+[tool.isort]
+profile = "black"
+known_first_party = "medviz"
+skip_glob = ["**/__init__.py"]

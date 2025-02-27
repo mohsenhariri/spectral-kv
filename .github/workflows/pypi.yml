@@ -1,0 +1,32 @@
+name: Publish PYPI
+
+on:
+  push:
+    branches: [release]
+
+permissions:
+  contents: read
+ 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # https://github.com/marketplace/actions/checkout
+      - name: Checkout
+        uses: actions/checkout@v4
+      # https://github.com/marketplace/actions/setup-python
+      - name: Set up Python
+        uses: actions/setup-python@v3.1.4
+        with:
+          python-version: 3.11
+      - name: Build and Publish
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TWINE_TOKEN }}
+        run: |
+          make switch-env gh
+          make env
+          make check
+          make pkg-build
+          make pkg-check
+          make pkg-publish-gh
