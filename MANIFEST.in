@@ -6,3 +6,6 @@ recursive-exclude scripts *
 recursive-exclude * tests
 
 include VERSION
+
+recursive-include kvq *.py
+

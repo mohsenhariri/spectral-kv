@@ -1,4 +1,0 @@
-"""
-DocString
-"""
-print("main")

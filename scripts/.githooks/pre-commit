@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SRC='pkg'
+SRC='kvq'
 
 echo "You are about to commit" $(git diff --cached --name-only --diff-filter=ACM)
 echo "to" $(git branch --show-current)
