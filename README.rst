@@ -8,7 +8,7 @@ More for Keys, Less for Values: Adaptive KV Cache Quantization ☝️🔑👇�
 Installation
 ------------
 
-To install the package, use pip:
+To install the package from PyPI, run the following command:
 
 .. code-block:: bash
 
@@ -18,38 +18,75 @@ To install the package, use pip:
 Usage
 -----
 
-To use the package, import it in your Python code:
+1. Initialization
 
-.. code-block:: python
+   1.1. Creating a KVQ object using a configuration object:
 
-    import kvq
+   .. code-block:: python
 
-    medviz.layered_plot(image_path="dataset/1-1.nii", mask_paths=["dataset/small_bowel.nii", "dataset/1-1-label.nii"], mask_colors=["red", "yellow"], title="Layered Plot")
+       import torch
+       from kvq import KVQ, KVQCacheConfig
 
-The `layered_plot` function creates a layered plot of an image and one or more masks. The masks are overlaid on top of the image using the specified colors. The resulting plot can be used to visualize the location of structures or regions of interest in the image.
+       config = KVQCacheConfig(
+           nbits_k=4,
+           nbits_v=2,
+           axis_key=0,
+           axis_value=0,
+           q_group_size=64,
+           residual_length=128,
+           compute_dtype=torch.bfloat16,
+           backend="quanto",
+           device=model.device,
+       )
+       kvq = KVQ(config)
+
+   1.2. Creating a KVQ object directly from a dictionary:
+
+   .. code-block:: python
+
+       kvq_dict = {
+           "nbits_k": 4,
+           "nbits_v": 2,
+           "axis_key": 0,
+           "axis_value": 0,
+           "q_group_size": 64,
+           "residual_length": 128,
+           "compute_dtype": torch.float16,
+           "backend": "quanto",
+           "device": model.device,
+       }
+       kvq = KVQ(kvq_dict)
+
+2. Using KVQ during text generation with a transformer model
+
+   .. code-block:: python
+
+       # Assume 'model' is a transformer-like model (e.g. Llama, Mistral, ...)
+       # that supports caching past key-value states.
+
+       outputs = model.generate(
+           **inputs,
+           max_new_tokens=1024,
+           use_cache=True,
+           past_key_values=kvq,
+       )
+       print(outputs)
+
+GitHub Repository
+-----------------
+
+The source code is hosted on GitHub:
+
+`https://github.com/mohsenhariri/kvq <https://github.com/mohsenhariri/kvq>`_
+
+Feel free to open issues, suggest improvements, or submit pull requests!
 
 
-.. code-block:: python
+Citation
+--------
 
-    import medviz
+If you find our method useful, please kindly cite our paper:
 
-    medviz.gif(
-        image_path="dataset/1-1.nii",
-        mask_paths=[
-            "dataset/small_bowel.nii",
-            "dataset/1-1-label.nii",
-            "dataset/vertebrae_L3.nii.gz",
-            "dataset/vertebrae_L4.nii.gz",
-            "dataset/vertebrae_L5.nii.gz",
-        ],
-        mask_colors=["red", "yellow", "green", "blue", "purple"],
-        title="Expert Annotations",
-        interval=70,
-        start_slice=30,
-        end_slice=130,
-        save_path="animation.gif",
-    )
-
-The `gif` function creates an animated GIF of an image and one or more masks. The masks are overlaid on top of the image using the specified colors. The resulting GIF can be used to visualize the location of structures or regions of interest in the image.
-
-GitHub repository: https://github.com/mohsenhariri/kvq
+    Mohsen Hariri, Lam Nguyen, Sixu Chen, Shaochen Zhong, Qifan Wang, Xia Hu, Xiaotian Han, Vipin Chaudhary,
+    "More for Keys, Less for Values: Adaptive KV Cache Quantization",
+    `https://arxiv.org/abs/2502.15075 <https://arxiv.org/abs/2502.15075>`_

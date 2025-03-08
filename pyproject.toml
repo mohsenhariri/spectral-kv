@@ -10,27 +10,33 @@ dynamic = ["version"]
 authors = [
   {name = "Mohsen Hariri", email = "mohsen.hariri@case.edu"},
 ]
-description = "More for Keys, Less for Values: Adaptive KV Cache Quantization 🐍🚀🎉🦕"
+description = "More for Keys, Less for Values: Adaptive KV Cache Quantization ☝️🔑👇🔢"
 keywords = ["Large Language Models", "Cache", "Quantization", "Compression", "Optimization"]
-license = {text = "GPL-3.0 License"}
+license = {text = "MIT"}
 # https://github.com/pypi/warehouse/issues/869
 readme = "README.rst"
 requires-python = ">=3.10"
 classifiers = [
   "Programming Language :: Python :: 3.10",
-  "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
+
 dependencies = [
-  'importlib-metadata; python_version<"3.8"',
+  "transformers>=4.28.0",
+  "optimum-quanto>=0.2.7" 
 ]
+
+[project.urls]
+Homepage = "https://mohsenhariri.github.io/kvq/"
+Repository = "https://github.com/mohsenhariri/kvq"
+Issues = "https://github.com/mohsenhariri/kvq/issues"
+
 
 [tool.setuptools]
 packages = ["kvq"]
 
-
 [tool.setuptools.dynamic]
-# version = { attr = "medviz.__version__" }
 version = {file = ["VERSION"]}
 
 [tool.black]
@@ -38,7 +44,7 @@ line-length = 88
 target-version = ["py38"]
 
 [tool.ruff]
-src = ["pkg"]
+src = ["kvq"]
 target-version = "py38"
 
 [tool.isort]
