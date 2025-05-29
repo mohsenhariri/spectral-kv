@@ -2,8 +2,6 @@
 kvq
 ==============
 
-More for Keys, Less for Values: Adaptive KV Cache Quantization ☝️🔑👇🔢
-
 
 Installation
 ------------
@@ -88,5 +86,5 @@ Citation
 If you find our method useful, please kindly cite our paper:
 
     Mohsen Hariri, Lam Nguyen, Sixu Chen, Shaochen Zhong, Qifan Wang, Xia Hu, Xiaotian Han, Vipin Chaudhary,
-    "More for Keys, Less for Values: Adaptive KV Cache Quantization",
+    "Quantize What Counts: Bit Allocation Insights Informed by Spectral Gaps in Keys and Values",
     `https://arxiv.org/abs/2502.15075 <https://arxiv.org/abs/2502.15075>`_
