@@ -2,7 +2,7 @@
 kvq
 ==============
 
-More for Keys, Less for Values: Adaptive KV Cache Quantization ☝️🔑👇🔢
+Norm-Aware KVQuant: Precision Where It Counts
 
 
 Installation
@@ -87,6 +87,6 @@ Citation
 
 If you find our method useful, please kindly cite our paper:
 
-    Mohsen Hariri, Lam Nguyen, Sixu Chen, Shaochen Zhong, Qifan Wang, Xia Hu, Xiaotian Han, Vipin Chaudhary,
+    Mohsen Hariri, Alan Luo, Mohammadreza Nemati, Lam Nguyen, Shaochen Zhong, Qifan Wang, Xia Hu, Xiaotian Han, Vipin Chaudhary,
     "More for Keys, Less for Values: Adaptive KV Cache Quantization",
     `https://arxiv.org/abs/2502.15075 <https://arxiv.org/abs/2502.15075>`_

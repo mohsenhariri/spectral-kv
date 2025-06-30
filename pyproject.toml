@@ -10,7 +10,7 @@ dynamic = ["version"]
 authors = [
   {name = "Mohsen Hariri", email = "mohsen.hariri@case.edu"},
 ]
-description = "More for Keys, Less for Values: Adaptive KV Cache Quantization ☝️🔑👇🔢"
+description = "Norm-Aware KVQuant: Precision Where It Counts"
 keywords = ["Large Language Models", "Cache", "Quantization", "Compression", "Optimization"]
 license = {text = "MIT"}
 # https://github.com/pypi/warehouse/issues/869
