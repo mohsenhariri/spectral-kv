@@ -47,7 +47,37 @@ If $b_K > b_V$, then the expected inference accuracy under allocation $(b_K, b_V
 - [x] [Quanto](https://github.com/huggingface/optimum-quanto)
 - [x] [HQQ](https://mobiusml.github.io/hqq_blog/)
 
+`kvq` supports the following models:
+
+
+- Qwen 3.0
+  - Qwen/Qwen3-0.6B
+  - Qwen/Qwen3-4B
+  - Qwen/Qwen3-8B
+  - Qwen/Qwen3-14B
+  - Qwen/Qwen3-32B
+
+- Llama 3.0
+  - meta-llama/Meta-Llama-3-8B
+  - meta-llama/Meta-Llama-3-8B-Instruct
+- Llama 3.2
+  - meta-llama/Llama-3.2-1B
+  - meta-llama/Llama-3.2-1B-Instruct
+  - meta-llama/Llama-3.2-3B
+  - meta-llama/Llama-3.2-3B-Instruct
+- Llama 3.3
+  - meta-llama/Llama-3.3-70B-Instruct
+
+
+`KVQ` can be installed via pip:
+
+```bash
+pip install kvq
+```
+
 ### Usage
+
+
 
 
 Work in progress. The code will be released soon.

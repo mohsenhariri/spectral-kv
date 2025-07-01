@@ -2,7 +2,11 @@
 kvq
 ==============
 
-Norm-Aware KVQuant: Precision Where It Counts
+Norm-Aware KV Cache Quantization
+
+- `Quantize What Counts: Bit Allocation Insights Informed by Spectral Gaps in Keys and Values <https://arxiv.org/abs/2502.15075v2/>`_.
+
+- Norm-Aware KVQuant: Precision Where It Counts 
 
 
 Installation
@@ -51,7 +55,7 @@ Usage
            "axis_value": 0,
            "q_group_size": 64,
            "residual_length": 128,
-           "compute_dtype": torch.float16,
+           "compute_dtype": torch.bfloat16,
            "backend": "quanto",
            "device": model.device,
        }
@@ -85,8 +89,16 @@ Feel free to open issues, suggest improvements, or submit pull requests!
 Citation
 --------
 
-If you find our method useful, please kindly cite our paper:
 
-    Mohsen Hariri, Alan Luo, Mohammadreza Nemati, Lam Nguyen, Shaochen Zhong, Qifan Wang, Xia Hu, Xiaotian Han, Vipin Chaudhary,
-    "More for Keys, Less for Values: Adaptive KV Cache Quantization",
-    `https://arxiv.org/abs/2502.15075 <https://arxiv.org/abs/2502.15075>`_
+If you find our work useful or interesting, please consider citing our paper:
+
+.. code-block:: bibtex
+
+    @article{hariri2025quantize,
+    title     = {Quantize What Counts: Bit Allocation Insights Informed by Spectral Gaps in Keys and Values},
+    author    = {Hariri, Mohsen and Luo, Alan and Nemati, Mohammadreza and Nguyen, Lam and Zhong, Shaochen and Wang, Qifan and Hu, Xia and Han, Xiaotian and Chaudhary, Vipin},
+    journal   = {arXiv preprint arXiv:2502.15075},
+    year      = {2025},
+    url       = {https://arxiv.org/abs/2502.15075v2},
+    }
+
