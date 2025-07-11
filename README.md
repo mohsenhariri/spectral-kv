@@ -7,6 +7,7 @@
 - **Norm-Aware KVQuant: Precision Where It Counts**  
   - **TL;DR:** Performs layer-wise bit allocation for KV cache quantization, guided by the norm and spectral gap between keys and values.
 
+- [LM Eval Harness Support!](https://github.com/EleutherAI/lm-evaluation-harness)
 
 ## Quantize What Counts
 
@@ -46,6 +47,7 @@ If $b_K > b_V$, then the expected inference accuracy under allocation $(b_K, b_V
 
 - [x] [Quanto](https://github.com/huggingface/optimum-quanto)
 - [x] [HQQ](https://mobiusml.github.io/hqq_blog/)
+- [ ] [PyTorch](https://docs.pytorch.org/docs/stable/quantization.html)
 
 `kvq` supports the following models:
 
