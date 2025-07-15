@@ -80,10 +80,39 @@ pip install kvq
 ### Usage
 
 
+```python
 
 
-Work in progress. The code will be released soon.
+import torch
+from kvq import KVQConfig, KVQ
 
+
+model = "meta-llama/Llama-3.3-70B-Instruct"
+
+
+config = KVQConfig(
+    budget = 4, 
+    model=model,
+    residual_length=32,
+    group_size={"k": 64, "v": 64}, # Group size for keys and values
+    axis={"k": 0, "v": 0}, # Axis along which to quantize
+)
+
+kv_cache = KVQ(config)
+
+text = "What is the meaning of life?"
+
+inputs = tokenizer(text, return_tensors="pt").to(model.device)
+
+outputs = model.generate(
+    **inputs,
+    max_new_tokens=256,
+    past_key_values=kv_cache,
+    use_cache=True,
+    pad_token_id=tokenizer.eos_token_id, 
+)
+
+```
 
 
 ## Citation
