@@ -87,12 +87,9 @@ import torch
 from kvq import KVQConfig, KVQ
 
 
-model = "meta-llama/Llama-3.3-70B-Instruct"
-
-
 config = KVQConfig(
     budget = 4, 
-    model=model,
+    model="meta-llama/Llama-3.1-8B-Instruct",
     residual_length=32,
     group_size={"k": 64, "v": 64}, # Group size for keys and values
     axis={"k": 0, "v": 0}, # Axis along which to quantize
