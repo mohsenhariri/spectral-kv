@@ -2,7 +2,7 @@ from hqq.core.quantize import Quantizer
 
 # 3.5 is not supported yet
 _SUPPORTED_BITS = (*Quantizer.SUPPORTED_BITS, 3.5)
-
+_DEFAULT_GROUP_SIZES = (16, 32, 64, 128, 256)
 
 llama3_3 = [
     "meta-llama/Llama-3.3-70B-Instruct",

@@ -63,7 +63,27 @@ class KVQ(DynamicCache):
         else:
             nbits_v_layer = nbits_v
 
-        # Update key/value caches with layer-specific bits
+        # Determine group size for this layer (key)
+        # group_size_k can be either int (fixed) or List[int] (dynamic per layer)
+        group_size_k = self.config.group_size_k
+        if isinstance(group_size_k, list):
+            group_size_k_layer = (
+                group_size_k[layer_idx] if layer_idx < len(group_size_k) else group_size_k[-1]
+            )
+        else:
+            group_size_k_layer = group_size_k
+
+        # Determine group size for this layer (value)
+        # group_size_v can be either int (fixed) or List[int] (dynamic per layer)
+        group_size_v = self.config.group_size_v
+        if isinstance(group_size_v, list):
+            group_size_v_layer = (
+                group_size_v[layer_idx] if layer_idx < len(group_size_v) else group_size_v[-1]
+            )
+        else:
+            group_size_v_layer = group_size_v
+
+        # Update key/value caches with layer-specific bits and group sizes
         keys_to_return = self._update(
             key_states,
             self._quantized_key_cache,
@@ -71,7 +91,7 @@ class KVQ(DynamicCache):
             layer_idx,
             axis=self.axis_k,
             nbits=nbits_k_layer,
-            group_size=self.group_size_k,
+            group_size=group_size_k_layer,
             residual_length=self.residual_length_k,
         )
 
@@ -82,7 +102,7 @@ class KVQ(DynamicCache):
             layer_idx,
             axis=self.axis_v,
             nbits=nbits_v_layer,
-            group_size=self.group_size_v,
+            group_size=group_size_v_layer,
             residual_length=self.residual_length_v,
         )
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 import warnings
 from typing import Dict, List, Sequence
@@ -7,6 +5,7 @@ from typing import Dict, List, Sequence
 import importlib.resources as pkg_resources
 
 from kvq.const import model_dict, supported_models, _SUPPORTED_BITS
+from kvq.helpers import extract_model_name
 
 
 RD_EXP: int = 2  # 2^(−RD_EXP·b)
@@ -21,33 +20,34 @@ def _build_next_bit_dict(bits: Sequence[float]) -> Dict[float, float]:
 
 
 def bit_pattern(
-    model: str,
+    model_name_or_path: str,
     budget=4,
     layers="all",
     bit_range=_SUPPORTED_BITS,
     score: int = 0,  # will be removed
 ):
     """
-    Allocate bit-widths for every (W_k, W_v) matrix in *model*.
+    Allocate bit-widths for KV caches per layer.
 
-    Parameters
-    ----------
-    model : str
+    Args:
+    model_name_or_path : str
         HuggingFace repo name (must exist in kvq.const.model_dict).
     budget : int | float, default 4
         Average bits per matrix (total budget = 2 * layers * budget).
     layers : "all" | int, default "all"
         Currently only "all" layers are supported.
     bit_range : sequence of float, default _SUPPORTED_BITS
-        Allowed quantisation bit-widths (need not be integers).
-    score : {0, 1}, default 0 will be removed
+        Allowed quantization bit-widths.
+    score : {0, 1}, default 0.
         0: Frobenius norm file, 1: spectral norm file.
 
     Returns
     dict with keys
-        "nbits_k": list[float] – per-layer bits for W_k
-        "nbits_v": list[float] – per-layer bits for W_v
+        "nbits_k": list[float]: per-layer bits for W_k
+        "nbits_v": list[float]: per-layer bits for W_v
     """
+
+    model = extract_model_name(model_name_or_path)
 
     if model not in supported_models:
         raise ValueError(
@@ -131,19 +131,40 @@ def bit_pattern(
             f"{total_budget} by > {TOL}."
         )
 
-    print(f"Total bits used: {used}, (Budget: {total_budget})")
+    # print(f"Total bits used: {used}, (Budget: {total_budget})")
 
     return {"nbits_k": w_k_bits, "nbits_v": w_v_bits}
 
 
 if __name__ == "__main__":
 
-    kv_bits = bit_pattern(
-        model="meta-llama/Llama-3.2-1B-Instruct",
-        budget=4,
-        bit_range=(8, 6, 5, 4, 3, 2, 1.58, 1),
-        score=1,
-    )
+    models = [
+        "meta-llama/Llama-3.2-1B-Instruct",
+        "meta-llama/Llama-3.2-3B-Instruct",
+        "meta-llama/Llama-3.1-8B-Instruct",
+        "meta-llama/Llama-3.3-70B-Instruct",
+        "Qwen/Qwen3-0.6B",
+        "Qwen/Qwen3-4B",
+        "Qwen/Qwen3-8B",
+        "Qwen/Qwen3-32B",
+    ]
 
-    print("w_k bits:", kv_bits["nbits_k"])
-    print("w_v bits:", kv_bits["nbits_v"])
+    bit_range = [8, 6, 4, 2, 1.58, 1]  # used in evaluation experiments
+
+    
+    budgets = [2, 4]
+
+    scores = [0, 1]  # 0 for frobenius_norm, 1 for spectral_norm
+
+    for model in models:
+        for budget in budgets:
+            for score in scores:
+                kv_bits = bit_pattern(
+                    model_name_or_path=model,
+                    bit_range=bit_range,
+                    budget=budget,
+                    score=score,
+                )
+                print(f"Model: {model}, Budget: {budget}, Score: {score}")
+                print(kv_bits)
+                print("\n")
