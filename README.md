@@ -7,7 +7,10 @@
 - **Norm-Aware KVQuant: Precision Where It Counts**  
   - **TL;DR:** Performs layer-wise bit allocation for KV cache quantization, guided by the norm and spectral gap between keys and values.
 
-- [LM Eval Harness Support!](https://github.com/EleutherAI/lm-evaluation-harness)
+- [LM Eval Harness Support!](git@github.com:mohsenhariri/lm-evaluation-harness.git)
+  - Please use the `kvq` branch for evaluation.
+  - KVQ argument for **lm_eval**: `--kvq '{"budget":4,"bit_range":[1,1.58,2,4,6,8],"axis":{"k":1,"v":1},"residual_length":{"k":64,"v":64},"group_budget":64,"group_range":[32, 64, 128]'}`
+
 
 ## Quantize What Counts
 
