@@ -2,15 +2,11 @@ import json
 import warnings
 from typing import Dict, List, Sequence
 
-import importlib.resources as pkg_resources
+from kvq.const import _SUPPORTED_BITS
+from kvq.helpers import load_kv_norms
 
-from kvq.const import model_dict, supported_models, _SUPPORTED_BITS
-from kvq.helpers import extract_model_name
-
-
-RD_EXP: int = 2  # 2^(−RD_EXP·b)
-TOL: float = 1e-6
-ASSETS_PATH = "kvq.assets"
+RD_EXP: int = 2  # Rate-Distortion exponent: error is proportional to 2^(−RD_EXP·b)
+TOL: float = 1e-6  # Tolerance for floating point comparisons
 
 
 def _build_next_bit_dict(bits: Sequence[float]) -> Dict[float, float]:
@@ -24,22 +20,32 @@ def bit_pattern(
     budget=4,
     layers="all",
     bit_range=_SUPPORTED_BITS,
-    score: int = 0,  # will be removed
+    score: int = 0,
 ):
     """
-    Allocate bit-widths for KV caches per layer.
+    Allocate bit-widths for KV caches per layer based on sensitivity scores.
+
+    This function uses a greedy algorithm to distribute a total bit budget across
+    the key (K) and value (V) caches of a model. The goal is to minimize the
+    overall quantization error, which is estimated using pre-computed norm scores
+    (Frobenius or spectral) as a measure of sensitivity.
+
+    The algorithm iteratively assigns bits to the matrix (K or V cache matrix
+    for a given layer) that will yield the largest reduction in error for the
+    number of bits added.
 
     Args:
     model_name_or_path : str
         HuggingFace repo name (must exist in kvq.const.model_dict).
     budget : int | float, default 4
-        Average bits per matrix (total budget = 2 * layers * budget).
+        Average bits per matrix (total budget = 2 * num_layers * budget).
     layers : "all" | int, default "all"
         Currently only "all" layers are supported.
     bit_range : sequence of float, default _SUPPORTED_BITS
         Allowed quantization bit-widths.
     score : {0, 1}, default 0.
-        0: Frobenius norm file, 1: spectral norm file.
+        0: Use Frobenius norm scores.
+        1: Use spectral norm scores.
 
     Returns
     dict with keys
@@ -47,31 +53,13 @@ def bit_pattern(
         "nbits_v": list[float]: per-layer bits for W_v
     """
 
-    model = extract_model_name(model_name_or_path)
-
-    if model not in supported_models:
-        raise ValueError(
-            f"Model {model!r} is not supported. "
-            f"Supported models: {', '.join(supported_models)}"
-        )
-
-    # TODO: more specific
     if budget > 8:
         raise ValueError("Budget should be less than or equal to 8 bits.")
 
     if layers != "all":
         raise NotImplementedError("Only layers='all' is currently supported.")
 
-    model_name = model_dict.get(model)
-
-    if model_name is None:
-        raise ValueError(f"Model {model} not found in mapping. Please open an issue.")
-
-    norm_type = "frobenius_norm" if score == 0 else "spectral_norm"
-    score_file = f"{norm_type}/{model_name}.json"
-
-    with pkg_resources.files(ASSETS_PATH).joinpath(score_file).open() as f:
-        kv_norms = json.load(f)
+    kv_norms = load_kv_norms(model_name_or_path, score)
 
     num_layers = len(kv_norms["w_k"])
 
@@ -98,26 +86,31 @@ def bit_pattern(
         cand_delta = None
 
         for idx, (c_i, b_i) in enumerate(zip(c, current_bits)):
-            # Is there a higher precision we can jump to?
+            # Check if a higher precision is available
             next_b = next_bit_dict.get(b_i)
             if next_b is None:
                 continue
 
             delta_b = next_b - b_i
+            # Do not exceed the budget
             if bits_used + delta_b - total_budget > TOL:
                 continue
 
+            # Calculate the reduction in error per bit added
             cur_err = c_i * 2 ** (-RD_EXP * b_i)
             next_err = c_i * 2 ** (-RD_EXP * next_b)
             gain = (cur_err - next_err) / delta_b
 
+            # If this is the best gain so far, store it
             if gain > best_gain + TOL:
                 best_gain, cand_idx = gain, idx
                 cand_next, cand_delta = next_b, delta_b
 
         if cand_idx is None:
+            # No more bits can be added without exceeding the budget
             break
 
+        # Allocate the bits that gave the best gain
         current_bits[cand_idx] = cand_next
         bits_used += cand_delta
 
@@ -151,7 +144,6 @@ if __name__ == "__main__":
 
     bit_range = [8, 6, 4, 2, 1.58, 1]  # used in evaluation experiments
 
-    
     budgets = [2, 4]
 
     scores = [0, 1]  # 0 for frobenius_norm, 1 for spectral_norm

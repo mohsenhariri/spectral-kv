@@ -1,9 +1,10 @@
-import torch
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Union
 
-from kvq.const import _SUPPORTED_BITS, _DEFAULT_GROUP_SIZES
+import torch
+
 from kvq.bit_pattern import bit_pattern
+from kvq.const import _DEFAULT_GROUP_SIZES, _SUPPORTED_BITS
 from kvq.group_pattern import group_pattern
 
 NbVal = Union[int, List[int]]

@@ -1,4 +1,4 @@
-from .bit_pattern import bit_pattern # TESTING
+from .bit_pattern import bit_pattern  # TESTING
 from .group_pattern import group_pattern
 
 from .KVQConfig import KVQConfig

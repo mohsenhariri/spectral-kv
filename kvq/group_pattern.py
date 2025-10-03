@@ -3,14 +3,10 @@ import math
 import warnings
 from typing import Dict, List, Sequence, Tuple
 
-import importlib.resources as pkg_resources
+from kvq.const import _DEFAULT_GROUP_SIZES
+from kvq.helpers import load_kv_norms
 
-from kvq.const import model_dict, supported_models, _DEFAULT_GROUP_SIZES
-from kvq.helpers import extract_model_name
-
-
-TOL: float = 1e-6
-ASSETS_PATH = "kvq.assets"
+TOL: float = 1e-6  # Tolerance for floating point comparisons
 
 
 def _adjacent_maps(sizes: Sequence[int]):
@@ -42,31 +38,35 @@ def group_pattern(
     """
     Allocate group sizes for for KV caches per layer.
 
+    This function determines the optimal group size for key (K) and value (V)
+    cache quantization on a per-layer basis. The allocation is performed under
+    a fixed budget for the total number of groups, which is equivalent to
+    maintaining a target average group size across all layers.
+
+    The method is based on the idea that the quantization error is proportional
+    to the group size, weighted by a sensitivity score (Frobenius or spectral
+    norm). The function first computes a continuous optimal solution and then
+    adjusts it to the discrete set of available group sizes using a greedy
+    refinement algorithm.
+
     Args:
     model_name_or_path : str
         HuggingFace repo name (must exist in kvq.const.model_dict).
     group_size_budget : int, default 64
-        Target *average* group size g in Eq. (1). (preserve total metadata size)
+        Target *average* group size. This preserves the total metadata size
+        that would be used with a fixed group size of this value.
     layers : "all" | int, default "all"
         Only "all" is supported for now.
     group_sizes : sequence[int], default (32, 64, 128)
         Allowed group sizes.
     score : {0, 1}, default 0
-            0: Frobenius norm file, 1: spectral norm file.
+            0: Use Frobenius norm scores.
+            1: Use spectral norm scores.
 
     Returns
     dict
         {"g_k": [int]*n , "g_v": [int]*n}
     """
-
-    model = extract_model_name(model_name_or_path)
-
-    if model not in supported_models:
-        raise ValueError(
-            f"Model {model!r} is not supported. "
-            f"Supported models: {', '.join(supported_models)}"
-        )
-
     if layers != "all":
         raise NotImplementedError("Only layers='all' is currently supported.")
 
@@ -76,16 +76,7 @@ def group_pattern(
     if any(g <= 0 for g in group_sizes):
         raise ValueError("`group_sizes` must all be positive.")
 
-    model_name = model_dict.get(model)
-    if model_name is None:
-        raise ValueError(f"No entry for {model!r} in kvq.const.model_dict.")
-
-    norm_type = "frobenius_norm" if score == 0 else "spectral_norm"
-
-    score_file = f"{norm_type}/{model_name}.json"
-
-    with pkg_resources.files(ASSETS_PATH).joinpath(score_file).open() as f:
-        norms = json.load(f)
+    norms = load_kv_norms(model_name_or_path, score)
 
     n_layers = len(norms["w_k"])
     c: List[float] = [val for pair in zip(norms["w_k"], norms["w_v"]) for val in pair]
@@ -97,23 +88,25 @@ def group_pattern(
     nxt_small, nxt_large = _adjacent_maps(group_sizes)
     cur_sum = sum(1.0 / g for g in sizes)
 
+    # Greedily adjust the group sizes to meet the target sum
     while abs(cur_sum - target_sum) > TOL:
-        if cur_sum > target_sum:  # need to decrease sum of 1/g, so grow some g
+        if cur_sum > target_sum:  # Need to decrease sum of 1/g, so grow some g
             best_i = best_ratio = None
             for i, (g_cur, c_i) in enumerate(zip(sizes, c)):
                 g_next = nxt_large.get(g_cur)
                 if g_next is None:
                     continue
-                delta_sum = (1 / g_next) - (1 / g_cur)  # negative
+                delta_sum = (1 / g_next) - (1 / g_cur)  # This will be negative
                 new_sum = cur_sum + delta_sum
-                if new_sum + TOL < target_sum:  # would overshoot low
+                if new_sum + TOL < target_sum:  # Would overshoot
                     continue
+                # Penalize changes that cause a large increase in error
                 delta_err = c_i * (g_next - g_cur)
-                ratio = delta_err / (-delta_sum)  # penalty per sum reduction
+                ratio = delta_err / (-delta_sum)  # penalty per unit of sum reduction
                 if best_ratio is None or ratio < best_ratio:
                     best_ratio, best_i = ratio, i
             if best_i is None:
-                break  # no legal move
+                break  # No legal move found
             cur = sizes[best_i]
             nxt = nxt_large[cur]
             cur_sum += (1 / nxt) - (1 / cur)
@@ -125,16 +118,17 @@ def group_pattern(
                 g_next = nxt_small.get(g_cur)
                 if g_next is None:
                     continue
-                delta_sum = (1 / g_next) - (1 / g_cur)  # positive
+                delta_sum = (1 / g_next) - (1 / g_cur)  # This will be positive
                 new_sum = cur_sum + delta_sum
-                if new_sum - TOL > target_sum:  # would overshoot high
+                if new_sum - TOL > target_sum:  # Would overshoot
                     continue
+                # Reward changes that cause a large decrease in error
                 delta_err = c_i * (g_cur - g_next)
-                gain = delta_err / delta_sum  # benefit per sum increase
+                gain = delta_err / delta_sum  # benefit per unit of sum increase
                 if best_gain is None or gain > best_gain:
                     best_gain, best_i = gain, i
             if best_i is None:
-                break
+                break  # No legal move found
             cur = sizes[best_i]
             nxt = nxt_small[cur]
             cur_sum += (1 / nxt) - (1 / cur)
@@ -182,9 +176,11 @@ if __name__ == "__main__":
             1 / g for g in kv_groups["g_v"]
         )
 
-        print(f"Model: {model} | "
-              f"Budget using fixed group size: {budget_using_fixed_group_size:.6f} | "
-              f"Budget using dynamic group size: {budget_using_dynamic_group_size:.6f}")
+        print(
+            f"Model: {model} | "
+            f"Budget using fixed group size: {budget_using_fixed_group_size:.6f} | "
+            f"Budget using dynamic group size: {budget_using_dynamic_group_size:.6f}"
+        )
 
         assert (
             abs(budget_using_fixed_group_size - budget_using_dynamic_group_size) < TOL

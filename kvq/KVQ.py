@@ -1,6 +1,7 @@
-import torch
 from typing import Any, Dict, List, Optional, Tuple, Union
+
 import hqq
+import torch
 from hqq.core.quantize import Quantizer
 from transformers import DynamicCache
 
@@ -68,7 +69,9 @@ class KVQ(DynamicCache):
         group_size_k = self.config.group_size_k
         if isinstance(group_size_k, list):
             group_size_k_layer = (
-                group_size_k[layer_idx] if layer_idx < len(group_size_k) else group_size_k[-1]
+                group_size_k[layer_idx]
+                if layer_idx < len(group_size_k)
+                else group_size_k[-1]
             )
         else:
             group_size_k_layer = group_size_k
@@ -78,7 +81,9 @@ class KVQ(DynamicCache):
         group_size_v = self.config.group_size_v
         if isinstance(group_size_v, list):
             group_size_v_layer = (
-                group_size_v[layer_idx] if layer_idx < len(group_size_v) else group_size_v[-1]
+                group_size_v[layer_idx]
+                if layer_idx < len(group_size_v)
+                else group_size_v[-1]
             )
         else:
             group_size_v_layer = group_size_v

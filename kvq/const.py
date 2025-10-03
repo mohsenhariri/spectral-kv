@@ -109,11 +109,9 @@ model_dict = {
     "Qwen/Qwen2.5-Math-PRM-72B": "Qwen2.5-Math-72B-PRM",
     "Qwen/Qwen2.5-Math-RM-72B": "Qwen2.5-Math-72B-RM",
     "Qwen/QwQ-32B-Preview": "QwenQwQ-32B-pr",
-
     "Qwen/Qwen3-0.6B": "Qwen3-0.6B",
     "Qwen/Qwen3-4B": "Qwen3-4B",
     "Qwen/Qwen3-8B": "Qwen3-8B",
     "Qwen/Qwen3-14B": "Qwen3-14B",
     "Qwen/Qwen3-32B": "Qwen3-32B",
-    
 }
