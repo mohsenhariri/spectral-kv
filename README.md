@@ -1,7 +1,7 @@
 # KV Cache Quantization
 
 
-- [Quantize What Counts: Bit Allocation Insights Informed by Spectral Gaps in Keys and Values](https://arxiv.org/abs/2502.15075v2)  
+- [Quantize What Counts: More For Keys, Less For Values](https://arxiv.org/abs/2502.15075v2)  
   - **TL;DR:** Keys carry more information than values → allocate more bits to keys than values in KV cache quantization.
 
 - **Norm-Aware KVQuant: Precision Where It Counts**  
