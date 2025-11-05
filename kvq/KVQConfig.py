@@ -14,18 +14,18 @@ GsVal = Union[int, List[int]]
 @dataclass(slots=True, frozen=True)
 class KVQConfig:
 
-    # will be removed later
+    # Score metric for quantization optimization
     score: int = 0  # 0 for frobenius_norm, 1 for spectral_norm
 
     # Quantization bit allocation
-    # Opion 1:
+    # Option 1:
     # nbits = n, n for both keys and values
     # nbits = {"k": n_k, "v": n_v} for different quantization bits for keys and values
     nbits: Optional[Union[int, Dict[str, int]]] = None
 
     # Option 2:
     # budget = n, total budget for kv quantization = n * 2 * num_layers
-    # Dyamically allocate bits for keys and values based on KV norms
+    # Dynamically allocate bits for keys and values based on KV norms
     # bit_range: range of bits to consider for kv quantization
     budget: Optional[int] = None
     bit_range: Optional[List[int]] = None
