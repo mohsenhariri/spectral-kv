@@ -4,7 +4,7 @@ kvq
 
 Norm-Aware KV Cache Quantization
 
-- `Quantize What Counts: Bit Allocation Insights Informed by Spectral Gaps in Keys and Values <https://arxiv.org/abs/2502.15075v2/>`_.
+- `Quantize What Counts: More For Keys, Less For Values <https://arxiv.org/abs/2502.15075v3/>`_.
 
 - Norm-Aware KVQuant: Precision Where It Counts 
 
@@ -81,7 +81,7 @@ GitHub Repository
 
 The source code is hosted on GitHub:
 
-`https://github.com/mohsenhariri/kvq <https://github.com/mohsenhariri/kvq>`_
+`https://github.com/mohsenhariri/spectral-kv <https://github.com/mohsenhariri/spectral-kv>`_
 
 Feel free to open issues, suggest improvements, or submit pull requests!
 
@@ -95,10 +95,13 @@ If you find our work useful or interesting, please consider citing our paper:
 .. code-block:: bibtex
 
     @article{hariri2025quantize,
-    title     = {Quantize What Counts: Bit Allocation Insights Informed by Spectral Gaps in Keys and Values},
-    author    = {Hariri, Mohsen and Luo, Alan and Nemati, Mohammadreza and Nguyen, Lam and Zhong, Shaochen and Wang, Qifan and Hu, Xia and Han, Xiaotian and Chaudhary, Vipin},
-    journal   = {arXiv preprint arXiv:2502.15075},
-    year      = {2025},
-    url       = {https://arxiv.org/abs/2502.15075v2},
-    }
+      title={Quantize What Counts: More for Keys, Less for Values}, 
+      author={Mohsen Hariri and Alan Luo and Weicong Chen and Shaochen Zhong and Tianyi Zhang and Qifan Wang and Xia Hu and Xiaotian Han and Vipin Chaudhary},
+      year={2025},
+      journal={arXiv preprint arXiv:2502.15075},
+      eprint={2502.15075},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2502.15075}, 
+}
 
