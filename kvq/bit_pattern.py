@@ -10,9 +10,106 @@ TOL: float = 1e-6  # Tolerance for floating point comparisons
 
 
 def _build_next_bit_dict(bits: Sequence[float]) -> Dict[float, float]:
-
+    """Build a lookup dict mapping each bit-width to the next higher one."""
     bits = sorted(bits)  # sorted if user passes unsorted bits
     return {bits[i]: bits[i + 1] for i in range(len(bits) - 1)}
+
+
+def allocate_bits_greedy(
+    sensitivities: Sequence[float],
+    total_budget: float,
+    bit_range: Sequence[float] = _SUPPORTED_BITS,
+    rd_exp: int = RD_EXP,
+) -> List[float]:
+    """
+    Greedy bit allocation algorithm (similar to water-filling).
+
+    Allocates bit-widths to tensors based on their sensitivity scores to minimize
+    total quantization error under a fixed bit budget constraint.
+
+    This is a discrete approximation to the water-filling algorithm:
+    - Water-filling: continuous bit allocation based on channel capacity
+    - This algorithm: discrete bit allocation based on rate-distortion gain
+
+    Key difference from classic water-filling:
+    - Water-filling allocates more bits to channels with higher SNR/capacity
+    - This allocates more bits to tensors with higher sensitivity (error coefficient)
+
+    The algorithm is **symmetric**: it treats all tensors identically based solely
+    on their sensitivity scores, regardless of whether they are keys, values, or
+    any other tensor type.
+
+    Args:
+        sensitivities: Sensitivity coefficient for each tensor (e.g., norm values).
+        total_budget: Total number of bits to allocate across all tensors.
+        bit_range: Available quantization bit-widths (default: _SUPPORTED_BITS).
+        rd_exp: Rate-distortion exponent (default: RD_EXP=2).
+                Error is modeled as: sensitivity^rd_exp * 2^(-rd_exp * bits)
+
+    Returns:
+        List of allocated bit-widths for each tensor.
+
+    Example:
+        >>> sensitivities = [1.5, 2.0, 1.0]  # 3 tensors with different sensitivities
+        >>> bits = allocate_bits_greedy(sensitivities, total_budget=12)
+        >>> # Result might be [4, 6, 2] - more bits to higher sensitivity tensors
+    """
+    n_tensors = len(sensitivities)
+    
+    if n_tensors == 0:
+        return []
+    
+    if not bit_range:
+        raise ValueError("bit_range cannot be empty.")
+    
+    # Precompute error coefficients: c_i = sensitivity_i^rd_exp
+    c = [s**rd_exp for s in sensitivities]
+
+    supported_bits = sorted(bit_range)
+    next_bit_dict = _build_next_bit_dict(supported_bits)
+
+    # Initialize all tensors at minimum precision
+    min_bits = supported_bits[0]
+    current_bits = [min_bits] * n_tensors
+    bits_used = n_tensors * min_bits
+
+    # Greedy allocation: iteratively add bits to the tensor with best gain
+    while bits_used + TOL < total_budget:
+        best_gain = -1.0
+        cand_idx = None
+        cand_next = None
+        cand_delta = None
+
+        for idx, (c_i, b_i) in enumerate(zip(c, current_bits)):
+            # Check if a higher precision is available
+            next_b = next_bit_dict.get(b_i)
+            if next_b is None:
+                continue
+
+            delta_b = next_b - b_i
+            # Do not exceed the budget
+            if bits_used + delta_b - total_budget > TOL:
+                continue
+
+            # Calculate the reduction in error per bit added (marginal gain)
+            cur_err = c_i * 2 ** (-rd_exp * b_i)
+            next_err = c_i * 2 ** (-rd_exp * next_b)
+            gain = (cur_err - next_err) / delta_b
+
+            # Select the tensor with the best gain
+            if gain > best_gain + TOL:
+                best_gain, cand_idx = gain, idx
+                cand_next, cand_delta = next_b, delta_b
+
+        if cand_idx is None:
+            # No more bits can be added without exceeding the budget
+            break
+
+        # Allocate bits to the best candidate
+        current_bits[cand_idx] = cand_next
+        bits_used += cand_delta
+
+    return current_bits
 
 
 def bit_pattern(
@@ -62,69 +159,32 @@ def bit_pattern(
     kv_norms = load_kv_norms(model_name_or_path, score)
 
     num_layers = len(kv_norms["w_k"])
-
     total_budget = 2 * budget * num_layers
-    n_matrices = 2 * num_layers
 
+    # Interleave K and V sensitivities: [K0, V0, K1, V1, ..., Kn, Vn]
     sens = []
     for k, v in zip(kv_norms["w_k"], kv_norms["w_v"]):
         sens.extend([k, v])
 
-    c = [s**RD_EXP for s in sens]
+    # Use the general allocation function
+    current_bits = allocate_bits_greedy(
+        sensitivities=sens,
+        total_budget=total_budget,
+        bit_range=bit_range,
+        rd_exp=RD_EXP,
+    )
 
-    supported_bits = sorted(bit_range)
-    next_bit_dict = _build_next_bit_dict(supported_bits)
-
-    min_bits = supported_bits[0]
-    current_bits = [min_bits] * n_matrices
-    bits_used = n_matrices * min_bits
-
-    while bits_used + TOL < total_budget:
-        best_gain = -1.0
-        cand_idx = None
-        cand_next = None
-        cand_delta = None
-
-        for idx, (c_i, b_i) in enumerate(zip(c, current_bits)):
-            # Check if a higher precision is available
-            next_b = next_bit_dict.get(b_i)
-            if next_b is None:
-                continue
-
-            delta_b = next_b - b_i
-            # Do not exceed the budget
-            if bits_used + delta_b - total_budget > TOL:
-                continue
-
-            # Calculate the reduction in error per bit added
-            cur_err = c_i * 2 ** (-RD_EXP * b_i)
-            next_err = c_i * 2 ** (-RD_EXP * next_b)
-            gain = (cur_err - next_err) / delta_b
-
-            # If this is the best gain so far, store it
-            if gain > best_gain + TOL:
-                best_gain, cand_idx = gain, idx
-                cand_next, cand_delta = next_b, delta_b
-
-        if cand_idx is None:
-            # No more bits can be added without exceeding the budget
-            break
-
-        # Allocate the bits that gave the best gain
-        current_bits[cand_idx] = cand_next
-        bits_used += cand_delta
-
+    # De-interleave results back into K and V
     w_k_bits = current_bits[0::2]
     w_v_bits = current_bits[1::2]
 
+    # Verify budget usage
     used = sum(w_k_bits) + sum(w_v_bits)
     if abs(used - total_budget) > TOL:
         warnings.warn(
             f"Total bits used = {used:.6f} differs from budget "
             f"{total_budget} by > {TOL}."
         )
-
-    # print(f"Total bits used: {used}, (Budget: {total_budget})")
 
     return {"nbits_k": w_k_bits, "nbits_v": w_v_bits}
 

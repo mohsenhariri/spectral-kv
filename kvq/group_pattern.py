@@ -28,63 +28,64 @@ def _nearest(supported: Sequence[int], g: float) -> int:
     return min(supported, key=lambda x: (abs(x - g), x))
 
 
-def group_pattern(
-    model_name_or_path: str,
-    group_size_budget: int = 64,
-    layers: str | int = "all",
+def allocate_groups_greedy(
+    sensitivities: Sequence[float],
+    target_sum: float,
     group_sizes: Sequence[int] = _DEFAULT_GROUP_SIZES,
-    score: int = 0,  # 0 = Frobenius, 1 = spectral
-) -> Dict[str, List[int]]:
+) -> List[int]:
     """
-    Allocate group sizes for for KV caches per layer.
+    Greedy group size allocation algorithm.
 
-    This function determines the optimal group size for key (K) and value (V)
-    cache quantization on a per-layer basis. The allocation is performed under
-    a fixed budget for the total number of groups, which is equivalent to
-    maintaining a target average group size across all layers.
+    Allocates group sizes to tensors based on their sensitivity scores to minimize
+    total quantization error under a fixed group budget constraint.
 
-    The method is based on the idea that the quantization error is proportional
-    to the group size, weighted by a sensitivity score (Frobenius or spectral
-    norm). The function first computes a continuous optimal solution and then
-    adjusts it to the discrete set of available group sizes using a greedy
-    refinement algorithm.
+    The algorithm is based on the rate-distortion principle where quantization
+    error is proportional to group_size × sensitivity. Smaller group sizes mean
+    more frequent recalibration (scale/zero-point computation), leading to lower
+    quantization error but higher metadata overhead.
+
+    The algorithm is **symmetric**: it treats all tensors identically based solely
+    on their sensitivity scores, regardless of whether they are keys, values, or
+    any other tensor type.
+
+    Key relationship:
+    - Higher sensitivity → Smaller group size (more recalibration)
+    - Lower sensitivity → Larger group size (less overhead)
+
+    This is opposite to bit allocation where higher sensitivity → more bits.
 
     Args:
-    model_name_or_path : str
-        HuggingFace repo name (must exist in kvq.const.model_dict).
-    group_size_budget : int, default 64
-        Target *average* group size. This preserves the total metadata size
-        that would be used with a fixed group size of this value.
-    layers : "all" | int, default "all"
-        Only "all" is supported for now.
-    group_sizes : sequence[int], default (32, 64, 128)
-        Allowed group sizes.
-    score : {0, 1}, default 0
-            0: Use Frobenius norm scores.
-            1: Use spectral norm scores.
+        sensitivities: Sensitivity coefficient for each tensor (e.g., norm values).
+        target_sum: Target sum of 1/g across all tensors (controls metadata budget).
+        group_sizes: Available group sizes (default: _DEFAULT_GROUP_SIZES).
 
-    Returns
-    dict
-        {"g_k": [int]*n , "g_v": [int]*n}
+    Returns:
+        List of allocated group sizes for each tensor.
+
+    Example:
+        >>> sensitivities = [1.5, 2.0, 1.0]  # 3 tensors with different sensitivities
+        >>> groups = allocate_groups_greedy(sensitivities, target_sum=0.1)
+        >>> # Result might be [64, 32, 128] - smaller groups for higher sensitivity
     """
-    if layers != "all":
-        raise NotImplementedError("Only layers='all' is currently supported.")
-
+    n_tensors = len(sensitivities)
+    
+    if n_tensors == 0:
+        return []
+    
     if not group_sizes:
         raise ValueError("`group_sizes` cannot be empty.")
-
+    
     if any(g <= 0 for g in group_sizes):
         raise ValueError("`group_sizes` must all be positive.")
 
-    norms = load_kv_norms(model_name_or_path, score)
-
-    n_layers = len(norms["w_k"])
-    c: List[float] = [val for pair in zip(norms["w_k"], norms["w_v"]) for val in pair]
-
-    target_sum = 2.0 * n_layers / group_size_budget
+    # Compute continuous optimal solution: g* ∝ 1/√c
+    c = sensitivities
     g_star = _continuous_optimum(c, target_sum)
+    
+    # Round to nearest supported sizes
     sizes = [_nearest(group_sizes, g) for g in g_star]
 
+    # Build adjacency maps for greedy refinement
     nxt_small, nxt_large = _adjacent_maps(group_sizes)
     cur_sum = sum(1.0 / g for g in sizes)
 
@@ -134,12 +135,83 @@ def group_pattern(
             cur_sum += (1 / nxt) - (1 / cur)
             sizes[best_i] = nxt
 
-    if abs(cur_sum - target_sum) > TOL:
+    return sizes
+
+
+def group_pattern(
+    model_name_or_path: str,
+    group_size_budget: int = 64,
+    layers: str | int = "all",
+    group_sizes: Sequence[int] = _DEFAULT_GROUP_SIZES,
+    score: int = 0,  # 0 = Frobenius, 1 = spectral
+) -> Dict[str, List[int]]:
+    """
+    Allocate group sizes for for KV caches per layer.
+
+    This function determines the optimal group size for key (K) and value (V)
+    cache quantization on a per-layer basis. The allocation is performed under
+    a fixed budget for the total number of groups, which is equivalent to
+    maintaining a target average group size across all layers.
+
+    The method is based on the idea that the quantization error is proportional
+    to the group size, weighted by a sensitivity score (Frobenius or spectral
+    norm). The function first computes a continuous optimal solution and then
+    adjusts it to the discrete set of available group sizes using a greedy
+    refinement algorithm.
+
+    Args:
+    model_name_or_path : str
+        HuggingFace repo name (must exist in kvq.const.model_dict).
+    group_size_budget : int, default 64
+        Target *average* group size. This preserves the total metadata size
+        that would be used with a fixed group size of this value.
+    layers : "all" | int, default "all"
+        Only "all" is supported for now.
+    group_sizes : sequence[int], default (32, 64, 128)
+        Allowed group sizes.
+    score : {0, 1}, default 0
+            0: Use Frobenius norm scores.
+            1: Use spectral norm scores.
+
+    Returns
+    dict
+        {"g_k": [int]*n , "g_v": [int]*n}
+    """
+    if group_size_budget <= 0:
+        raise ValueError("`group_size_budget` must be positive.")
+
+    if layers != "all":
+        raise NotImplementedError("Only layers='all' is currently supported.")
+
+    norms = load_kv_norms(model_name_or_path, score)
+
+    num_layers = len(norms["w_k"])
+    target_sum = 2.0 * num_layers / group_size_budget
+
+    # Interleave K and V sensitivities: [K0, V0, K1, V1, ..., Kn, Vn]
+    sens = []
+    for k, v in zip(norms["w_k"], norms["w_v"]):
+        sens.extend([k, v])
+
+    # Use the general allocation function
+    sizes = allocate_groups_greedy(
+        sensitivities=sens,
+        target_sum=target_sum,
+        group_sizes=group_sizes,
+    )
+
+    # De-interleave results back into K and V
+    g_k = sizes[0::2]
+    g_v = sizes[1::2]
+
+    # Verify budget usage
+    used_sum = sum(1.0 / g for g in sizes)
+    if abs(used_sum - target_sum) > TOL:
         warnings.warn(
-            f"Final sum 1/g = {cur_sum:.6f} vs target {target_sum:.6f} (>|{TOL}|)."
+            f"Final sum 1/g = {used_sum:.6f} vs target {target_sum:.6f} (>|{TOL}|)."
         )
 
-    return {"g_k": sizes[0::2], "g_v": sizes[1::2]}
+    return {"g_k": g_k, "g_v": g_v}
 
 
 if __name__ == "__main__":

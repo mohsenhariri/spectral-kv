@@ -3,3 +3,6 @@
 	url = git@github.com:mohsenhariri/lm-evaluation-harness.git
 	branch = kvq
 
+[submodule "hqq"]
+	path = hqq
+	url = git@github.com:mohsenhariri/hqq.git
