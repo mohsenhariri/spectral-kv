@@ -1,8 +1,7 @@
 import json
 import os
 from pathlib import Path
-
-import pkg_resources
+from importlib.resources import files # we only support Python 3.9+
 
 from kvq.const import model_dict, supported_models
 
@@ -26,7 +25,7 @@ def load_kv_norms(model_name_or_path: str, score: int) -> dict:
     norm_type = "frobenius_norm" if score == 0 else "spectral_norm"
     score_file = f"{norm_type}/{model_name}.json"
 
-    with pkg_resources.files(ASSETS_PATH).joinpath(score_file).open() as f:
+    with files(ASSETS_PATH).joinpath(score_file).open() as f:
         return json.load(f)
 
 
